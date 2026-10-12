@@ -1,0 +1,2 @@
+"""MemeDrop desktop media picker."""
+

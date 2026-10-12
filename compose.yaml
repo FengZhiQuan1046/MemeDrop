@@ -1,0 +1,26 @@
+x-environment: &environment
+  build: .
+  image: memedrop-dev:local
+  init: true
+  environment:
+    QT_QPA_PLATFORM: offscreen
+    PYTHONDONTWRITEBYTECODE: "1"
+
+services:
+  test:
+    <<: *environment
+    command: ["python", "-m", "unittest", "discover", "-s", "tests", "-v"]
+
+  smoke:
+    <<: *environment
+    command: ["python", "main.py", "--smoke-test", "--library", "/artifacts"]
+    volumes:
+      - ./.memedrop/docker-preview:/artifacts
+
+  dev:
+    <<: *environment
+    profiles: ["dev"]
+    command: ["sleep", "infinity"]
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
