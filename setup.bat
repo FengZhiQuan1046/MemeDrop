@@ -8,6 +8,6 @@ echo Ready. Double-click start.bat to launch MemeDrop.
 pause
 exit /b 0
 :failed
-echo Setup failed. Python 3.9 or later and internet access are required.
+echo Setup failed. Python 3.10 or later and internet access are required.
 pause
 exit /b 1

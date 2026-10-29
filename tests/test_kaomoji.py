@@ -65,6 +65,29 @@ class KaomojiTests(unittest.TestCase):
         self.lib.remove_kaomoji(mid)
         self.assertEqual(self.lib.items('已更新'), [])
 
+    def test_recycle_text_restore_duplicates_and_builtin_permanent_deletion(self):
+        builtin = self.lib.items()[0]
+        self.lib.set_favorite([builtin.id], True)
+        self.lib.record_use(builtin.id)
+        custom = self.lib.save_kaomoji('(^recycle_text^)', '自己的', ['私人'])
+        self.assertEqual(self.lib.trash_items([builtin.id, custom]), (2, []))
+        self.lib.seed_kaomoji()
+        self.assertEqual(len(self.lib.items(section='trash')), 2)
+        self.assertEqual(len(self.lib.items(section='builtin_kaomoji')), 239)
+        self.lib.save_kaomoji('(^recycle_text^)', '另一個', [])
+        self.assertEqual(self.lib.restore_items([custom])[0], 0)
+        self.assertEqual(self.lib.restore_items([builtin.id]), (1, []))
+        restored = next(m for m in self.lib.items() if m.id == builtin.id)
+        self.assertEqual((restored.favorite, restored.uses), (True, 1))
+        self.lib.trash_items([builtin.id])
+        self.assertEqual(self.lib.delete_items([builtin.id, custom]), (2, []))
+        self.assertEqual(self.lib.db.execute('SELECT content, title FROM media WHERE id = ?', (builtin.id,)).fetchone(), ('', ''))
+        self.assertEqual(self.lib.db.execute('SELECT * FROM tags WHERE media_id = ?', (builtin.id,)).fetchall(), [])
+        self.lib.close()
+        self.lib = Library(self.root)
+        self.assertNotIn(builtin.id, [m.id for m in self.lib.items()])
+        self.assertEqual(self.lib.items(section='trash'), [])
+
     def test_media_scan_and_text_never_overwrite_each_other(self):
         (self.lib.media_dir / 'photo.png').write_bytes(b'image')
         self.lib.scan()
@@ -87,7 +110,7 @@ class KaomojiTests(unittest.TestCase):
                 uses INTEGER NOT NULL DEFAULT 0, available INTEGER NOT NULL DEFAULT 1);
             CREATE TABLE tags (media_id INTEGER REFERENCES media(id), name TEXT NOT NULL,
                 PRIMARY KEY(media_id, name));
-            INSERT INTO media VALUES (1, 'old.png', 'image', 1, 123, 456, 7, 1);
+            INSERT INTO media VALUES (1, '舊系列/old.png', 'image', 1, 123, 456, 7, 1);
             INSERT INTO tags VALUES (1, '舊標籤');
         ''')
         db.close()
@@ -96,6 +119,9 @@ class KaomojiTests(unittest.TestCase):
             old = migrated.items(kind='image')[0]
             self.assertEqual((old.id, old.uses, old.favorite, old.tags), (1, 7, True, ('舊標籤',)))
             self.assertEqual(len(migrated.items(kind='kaomoji')), 240)
+            self.assertEqual(migrated.series_counts(), [(old.series_id, '舊系列', 1)])
+            self.assertEqual(migrated.tag_counts(f'series:{old.series_id}'), [('舊標籤', 1)])
+            self.assertEqual(migrated.items(section='my_memes'), [])
         finally:
             migrated.close()
 

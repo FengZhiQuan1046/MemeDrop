@@ -5,7 +5,8 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parent
 args = [sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean',
-        '--windowed', '--onedir', '--name', 'MemeDrop']
+        '--windowed', '--onedir', '--name', 'MemeDrop', '--collect-data', 'opencc',
+        '--collect-all', 'rapidocr', '--collect-all', 'onnxruntime', '--collect-all', 'av']
 conda_bin = Path(sys.base_prefix) / 'Library' / 'bin'
 for filename in ('sqlite3.dll', 'libcrypto-3-x64.dll', 'libssl-3-x64.dll'):
     dll = conda_bin / filename

@@ -92,6 +92,78 @@ class LibraryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.lib.path(meme)
 
+    def test_sections_partition_media_text_builtins_and_each_series(self):
+        self.lib.seed_kaomoji()
+        custom = self.lib.save_kaomoji('(^own^)', '自己的', ['共同', '文字專用'])
+        sid = self.lib.series_counts()[0][0]
+        other_sid = self.lib.create_series('第二系列')
+        video = self.lib.items(kind='video')[0]
+        self.lib.set_series([video.id], other_sid)
+        sections = ['my_memes', 'my_kaomoji', 'builtin_kaomoji', f'series:{sid}', f'series:{other_sid}']
+        partitions = [[m.id for m in self.lib.items(section=s)] for s in sections]
+        flattened = [mid for group in partitions for mid in group]
+        self.assertEqual(len(flattened), len(set(flattened)))
+        self.assertEqual(set(flattened), {m.id for m in self.lib.items()})
+        self.assertEqual(partitions[1], [custom])
+        self.assertEqual(len(partitions[2]), 240)
+        for group in partitions:
+            self.lib.set_tags(group, ['共同'])
+        self.lib.set_tags(partitions[0], ['圖片專用'], append=True)
+        self.lib.rename_tag('共同', '改名', f'series:{sid}')
+        self.assertEqual(self.lib.tag_counts(f'series:{sid}'), [('改名', 1)])
+        self.assertEqual(self.lib.tag_counts(f'series:{other_sid}'), [('共同', 1)])
+        self.assertEqual(self.lib.tag_counts('my_kaomoji'), [('共同', 1)])
+        self.assertEqual(self.lib.tag_counts('builtin_kaomoji'), [('共同', 240)])
+        self.lib.delete_tag('共同', 'my_memes')
+        self.assertEqual(self.lib.tag_counts('my_memes'), [('圖片專用', 1)])
+        self.assertEqual(self.lib.tag_counts('my_kaomoji'), [('共同', 1)])
+        self.lib.rename_tag('共同', '內建', 'builtin_kaomoji')
+        self.assertEqual(self.lib.tag_counts('builtin_kaomoji'), [('內建', 240)])
+        self.assertEqual(self.lib.tag_counts('my_kaomoji'), [('共同', 1)])
+
+    def test_series_assignment_survives_scan_restart_and_restored_files(self):
+        cat = self.lib.items(kind='animation')[0]
+        sid = self.lib.create_series('手動系列')
+        self.lib.set_tags([cat.id], ['保留'])
+        self.lib.set_favorite([cat.id], True)
+        self.lib.record_use(cat.id)
+        self.lib.set_series([cat.id], sid)
+        path = self.lib.path(cat)
+        data = path.read_bytes()
+        path.unlink()
+        self.lib.scan()
+        self.assertEqual(self.lib.tag_counts(f'series:{sid}'), [])
+        self.lib.rename_tag('保留', '改名', f'series:{sid}')
+        path.write_bytes(data)
+        self.lib.scan()
+        self.lib.close()
+        self.lib = Library(self.root, include_builtins=False)
+        result = self.lib.items(section=f'series:{sid}', collection='recent')[0]
+        self.assertEqual((result.id, result.tags, result.uses, result.favorite), (cat.id, ('改名',), 1, True))
+        self.lib.set_series([cat.id], None)
+        self.lib.scan()
+        self.assertIn(cat.id, [m.id for m in self.lib.items(section='my_memes')])
+        self.assertEqual(self.lib.items(section=f'series:{sid}'), [])
+
+    def test_import_into_series_and_validation(self):
+        sid = self.lib.create_series('新系列')
+        source = self.root / 'new.png'
+        source.write_bytes(b'new')
+        self.assertEqual(self.lib.import_files([source], series_id=sid), (1, []))
+        result = self.lib.items(section=f'series:{sid}')
+        self.assertEqual([m.name for m in result], ['new'])
+        self.lib.scan()
+        self.assertEqual(self.lib.items(section=f'series:{sid}')[0].id, result[0].id)
+        for name in ('', ' ', 'x' * 81, '新系列'):
+            with self.assertRaises(ValueError):
+                self.lib.create_series(name)
+        with self.assertRaises(ValueError):
+            self.lib.import_files([source], series_id=99999)
+        self.assertEqual(len(self.lib.items(section=f'series:{sid}')), 1)
+        custom = self.lib.save_kaomoji('(^no-series^)', '文字', [])
+        self.lib.set_series([custom], sid)
+        self.assertEqual(self.lib.items(section='my_kaomoji')[0].series_id, None)
+
 
 if __name__ == '__main__':
     unittest.main()
