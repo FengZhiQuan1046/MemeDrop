@@ -2,6 +2,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QLineEdit,
     QLabel, QPushButton, QTableWidget, QTableWidgetItem)
 
 from .library import parse_tags
+from .tag_picker import TagPicker
 
 
 class TagHierarchyDialog(QDialog):
@@ -16,9 +17,9 @@ class TagHierarchyDialog(QDialog):
         layout.addWidget(hint)
         form = QFormLayout()
         self.tag = QLineEdit()
-        self.parents = QLineEdit()
-        self.children = QLineEdit()
-        for title, widget in [('標籤', self.tag), ('父標籤（逗號分隔）', self.parents), ('子標籤（逗號分隔）', self.children)]:
+        self.parents = TagPicker()
+        self.children = TagPicker()
+        for title, widget in [('標籤', self.tag), ('父標籤', self.parents), ('子標籤', self.children)]:
             form.addRow(title, widget)
         layout.addLayout(form)
         self.status = QLabel()
@@ -46,6 +47,9 @@ class TagHierarchyDialog(QDialog):
 
     def refresh(self):
         edges = self.library.tag_edges(self.section)
+        options = [tag for tag, count in self.library.tag_counts(self.section)]
+        self.parents.set_options(options)
+        self.children.set_options(options)
         self.table.setRowCount(len(edges))
         for row, edge in enumerate(edges):
             for col, text in enumerate(edge):

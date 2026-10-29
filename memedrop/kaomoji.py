@@ -276,6 +276,10 @@ U^ｪ^U
 }
 
 # Search aliases include simplified forms without crowding the tag sidebar.
+from .kaomoji_extra import GROUPS as EXTRA_GROUPS, ALIASES as EXTRA_ALIASES
+
+GROUPS.update({category: block for category, (_, block) in EXTRA_GROUPS.items()})
+
 ALIASES = {
     '開心': ['开心', '快樂', '快乐', 'happy'],
     '大笑': ['哈哈', '笑死', 'laugh'],
@@ -294,6 +298,7 @@ ALIASES = {
     '睡覺': ['睡觉', '晚安', '疲倦', 'sleep'],
     '動物': ['动物', '貓咪', '猫咪', '熊', 'animal'],
 }
+ALIASES.update(EXTRA_ALIASES)
 
 
 def entries():
@@ -304,4 +309,5 @@ def entries():
             text = text.strip()
             if text not in seen:
                 seen.add(text)
-                yield text, f'{category} {number:02d}', [category]
+                extra_tags = EXTRA_GROUPS[category][0] if category in EXTRA_GROUPS else []
+                yield text, f'{category} {number:02d}', [category, *extra_tags]

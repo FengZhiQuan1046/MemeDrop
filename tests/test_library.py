@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from memedrop.library import Library, parse_tags
+from memedrop.kaomoji import entries
 
 
 class LibraryTests(unittest.TestCase):
@@ -105,7 +106,7 @@ class LibraryTests(unittest.TestCase):
         self.assertEqual(len(flattened), len(set(flattened)))
         self.assertEqual(set(flattened), {m.id for m in self.lib.items()})
         self.assertEqual(partitions[1], [custom])
-        self.assertEqual(len(partitions[2]), 240)
+        self.assertEqual(len(partitions[2]), len(list(entries())))
         for group in partitions:
             self.lib.set_tags(group, ['共同'])
         self.lib.set_tags(partitions[0], ['圖片專用'], append=True)
@@ -113,12 +114,12 @@ class LibraryTests(unittest.TestCase):
         self.assertEqual(self.lib.tag_counts(f'series:{sid}'), [('改名', 1)])
         self.assertEqual(self.lib.tag_counts(f'series:{other_sid}'), [('共同', 1)])
         self.assertEqual(self.lib.tag_counts('my_kaomoji'), [('共同', 1)])
-        self.assertEqual(self.lib.tag_counts('builtin_kaomoji'), [('共同', 240)])
+        self.assertEqual(self.lib.tag_counts('builtin_kaomoji'), [('共同', len(partitions[2]))])
         self.lib.delete_tag('共同', 'my_memes')
         self.assertEqual(self.lib.tag_counts('my_memes'), [('圖片專用', 1)])
         self.assertEqual(self.lib.tag_counts('my_kaomoji'), [('共同', 1)])
         self.lib.rename_tag('共同', '內建', 'builtin_kaomoji')
-        self.assertEqual(self.lib.tag_counts('builtin_kaomoji'), [('內建', 240)])
+        self.assertEqual(self.lib.tag_counts('builtin_kaomoji'), [('內建', len(partitions[2]))])
         self.assertEqual(self.lib.tag_counts('my_kaomoji'), [('共同', 1)])
 
     def test_series_assignment_survives_scan_restart_and_restored_files(self):

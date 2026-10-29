@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QApplication, QDialogButtonBox, QLineEdit, QMessag
 
 from memedrop import desktop as windows
 from memedrop.library import Library
+from memedrop.kaomoji import entries
 from memedrop.ui import MainWindow, STYLE, clipboard_data
 
 APP = QApplication.instance() or QApplication([])
@@ -76,6 +77,26 @@ class UiTests(unittest.TestCase):
         self.assertTrue(mime.hasFormat('image/png'))
         self.assertFalse(mime.hasUrls())
 
+    def test_tag_dropdown_scope_multiselect_and_save(self):
+        self.lib.save_kaomoji('(^scope^)', '區塊測試', ['顏文字專用'])
+        self.select('開心')
+        self.win.tag_edit.setText('圖片專用, Happy')
+        self.win.save_tags()
+        self.select('貓')
+        picker = self.win.tag_edit
+        picker.show_popup()
+        self.assertEqual(set(picker.options), {'圖片專用', 'Happy'})
+        for index in range(picker.choices.count()):
+            picker.choices.item(index).setCheckState(Qt.CheckState.Checked)
+        picker.query.setText('新增標籤')
+        picker.add_button.click()
+        picker.popup.hide()
+        self.win.save_tags()
+        self.assertEqual(set(self.win.selected_memes()[0].tags), {'圖片專用', 'Happy', '新增標籤'})
+        self.win.activate_section('my_kaomoji')
+        self.select('區塊測試')
+        self.assertEqual(picker.options, ['顏文字專用'])
+
     def test_media_backend_is_available(self):
         self.assertTrue(self.win.player.isAvailable(), 'Qt multimedia backend is missing')
 
@@ -84,10 +105,10 @@ class UiTests(unittest.TestCase):
         self.win.rescan()
         self.win.kind_combo.setCurrentIndex(self.win.kind_combo.findData('image'))
         self.win.activate_section('builtin_kaomoji')
-        self.assertEqual(self.win.grid.count(), 240)
+        self.assertEqual(self.win.grid.count(), len(list(entries())))
         self.win.search.setText('开心')
         QTest.qWait(180)
-        self.assertEqual(self.win.grid.count(), 15)
+        self.assertEqual(self.win.grid.count(), len(self.lib.items('开心', section='builtin_kaomoji')))
         self.win.grid.setCurrentRow(0)
         self.assertEqual(self.win.preview.text(), self.win.selected_memes()[0].content)
         self.assertFalse(self.win.paste_mode.isEnabled())
@@ -157,7 +178,7 @@ class UiTests(unittest.TestCase):
         self.assertEqual(self.win.tags_list.count(), 1)
         self.assertEqual(self.win.tags_list.item(0).data(Qt.ItemDataRole.UserRole), '私人標籤')
         self.win.activate_section('builtin_kaomoji')
-        self.assertEqual(self.win.grid.count(), 240)
+        self.assertEqual(self.win.grid.count(), len(list(entries())))
         self.assertNotIn('私人標籤', [self.win.tags_list.item(i).data(Qt.ItemDataRole.UserRole)
                                    for i in range(self.win.tags_list.count())])
 

@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QComboBox, QDial
 
 from . import desktop as windows
 from .library import EXTENSIONS, Library, Meme, parse_tags
+from .tag_picker import TagPicker
 
 STYLE = '''
 QWidget { background: #11131b; color: #e9eaf2; font-family: "Microsoft JhengHei UI", "Segoe UI"; font-size: 13px; }
@@ -437,8 +438,7 @@ class MainWindow(QMainWindow):
         details.addWidget(self.favorite_button)
         details.addSpacing(10)
         details.addWidget(QLabel('標籤'))
-        self.tag_edit = QLineEdit()
-        self.tag_edit.setPlaceholderText('例如：開心, 貓咪, 上班')
+        self.tag_edit = TagPicker()
         details.addWidget(self.tag_edit)
         self.tag_mode = QComboBox()
         self.tag_mode.addItem('取代選取素材的標籤', False)
@@ -757,6 +757,7 @@ class MainWindow(QMainWindow):
     def refresh_tags(self):
         self.tags_list.clear()
         if self.collection == 'trash':
+            self.tag_edit.set_options([])
             self.active_tag = None
             self.tag_label.setText('還原後保留原有標籤')
             return
@@ -770,6 +771,7 @@ class MainWindow(QMainWindow):
                 item.setSelected(True)
         if self.active_tag not in available:
             self.active_tag = None
+        self.tag_edit.set_options(available)
 
     def refresh_items(self, *args):
         if not hasattr(self, 'grid'):
@@ -1053,8 +1055,9 @@ class MainWindow(QMainWindow):
         content = QLineEdit(meme.content if meme else '')
         content.setMaxLength(500)
         content.setPlaceholderText('٩(๑❛ᴗ❛๑)۶')
-        tags = QLineEdit(', '.join(meme.display_tags) if meme else '')
-        tags.setPlaceholderText('例如：加油, 上班')
+        tags = TagPicker(', '.join(meme.display_tags) if meme else '')
+        section = self.library.tag_section(meme) if meme else 'my_kaomoji'
+        tags.set_options(tag for tag, count in self.library.tag_counts(section))
         form.addRow('名稱', title)
         form.addRow('顏文字', content)
         form.addRow('標籤', tags)

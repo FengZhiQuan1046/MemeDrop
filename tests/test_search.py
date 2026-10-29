@@ -49,9 +49,10 @@ class SearchTests(unittest.TestCase):
 
     def test_builtin_aliases_work_with_simplified_custom_tags(self):
         self.lib.seed_kaomoji()
+        expected = {m.id for m in self.lib.items(tag='開心', section='builtin_kaomoji')}
         for query in ('開心', '开心', 'Happy', 'HAPPY'):
             with self.subTest(query=query):
-                self.assertEqual(len(self.lib.items(query, section='builtin_kaomoji')), 15)
+                self.assertTrue(expected.issubset(m.id for m in self.lib.items(query, section='builtin_kaomoji')))
         self.lib.set_tags([self.text], ['开心'])
         self.assertEqual(self.ids('HAPPY', section='my_kaomoji'), {self.text})
 
